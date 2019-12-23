@@ -1,0 +1,40 @@
+# To move files from on premise sql server instance to Azure via commandline, use sqlbacpac to create a data+schema file. 
+# For data transfer to cloud, please enable firewall to allow traffic from your local host to cloud. 
+# Goto firewall configuration on Azure portal in the resource group where your resources are created OR
+# Quick-method > Right click on a database on your local machine, go to task, choose deploy database to Azure SQL database
+# you will see an option to add your IP too, and then cancel the setup if you dont want to proceed with deployment
+# but your machine IP get whitelisted. So you are good to use the command line now as described below. 
+
+# Creating a bacpac file generates all data + schema from the database tables
+# install DBAtools module in powershell. Open powershell and use below command 
+
+Install-Module dbatools
+
+# In powershell, use the below command to start exporting data into your local machine. 
+
+$cred=get-credential # asks for sql login account/password 
+export-dbadacpackage -sqlCredential $cred -sqlinstance <MSAzServername> -database Stackoverflow 
+-filepath V:\azure_bacpac_files_20191106\Stackoverflow.bacpac -type bacpac
+
+
+# You can also copy this file to azure blob storage, if you have created one before. 
+# AZCOPY is a windows copy utility used for faster data transfer
+
+azcopy /Source:"V:\20191105-dac\Stackoverflow\" 
+/Dest:https://devpool2.blob.core.windows.net/migration 
+/DestKey:<yourblobkey> 
+/Pattern:"yourfilename.bacpac"
+
+# The bacpac file is imported into cloud DB using below method from your local machine command line using SQLPACKAGE.
+# sqlpackage can be found under "C:\Program Files\Microsoft SQL Server\150\DAC\bin". 
+
+set sql_p=C:\Program Files\Microsoft SQL Server\150\DAC\bin
+cd %sql_p%
+sqlpackage.exe /sourcefile:"V:\azure_bacpac_files_20191106\Stackoverflow.bacpac" /action:import 
+/Targetservername:"MsAzure.database.windows.net" /Targetdatabasename:"Stackoverflow" /Targetuser:"myuser" 
+/TargetPassword:"myuser@123"
+
+# Login to Azure database using SSMS (use FQDN), connect using sql authentication or if domain user, you can choose MFA.
+# For domain users, org active directory should be enabled. Please check with your Systems team if they are the owner of the group.
+
+Login to ssms, and you should be good to see your datdabase.
